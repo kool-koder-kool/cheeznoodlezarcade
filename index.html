@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheez Noodlez Arcade</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jockey+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* --- ARCADE GLOBAL STYLES --- */
+        :root {
+            --cheez-orange: #f97316; /* Tailwind orange-600 */
+            --noodle-yellow: #fde047; /* Tailwind yellow-300 */
+            --dark-bg: #1f2937; /* Tailwind gray-800 */
+            --card-bg: #374151; /* Tailwind gray-700 */
+            --highlight-blue: #3b82f6; /* Tailwind blue-500 for secondary highlights */
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dark-bg);
+            overflow-x: hidden;
+        }
+
+        /* --- CHROME-STYLE TAB BAR --- */
+        .tab-bar-container {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background-color: var(--dark-bg);
+            border-bottom: 2px solid var(--cheez-orange);
+            box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.6);
+        }
+
+        .chrome-tab {
+            /* Aggressive trapezoid shape for arcade look */
+            clip-path: polygon(15% 0, 85% 0, 100% 100%, 0% 100%);
+            transition: all 0.2s ease-in-out;
+            margin-right: -15px; /* Overlap effect */
+            padding-right: 25px !important;
+            padding-left: 20px !important;
+            z-index: 10;
+        }
+
+        .chrome-tab.active {
+            background-color: var(--noodle-yellow);
+            color: var(--dark-bg);
+            border: 3px solid var(--cheez-orange);
+            border-bottom: 3px solid var(--noodle-yellow); /* Creates the illusion of connecting to content */
+            margin-bottom: -3px; /* Pulls the tab down slightly to meet the content */
+            z-index: 20;
+            box-shadow: 0 0 15px rgba(253, 224, 71, 0.8);
+            text-shadow: 1px 1px 0 #fff;
+        }
+
+        .chrome-tab:not(.active) {
+            background-color: var(--card-bg);
+            color: #d1d5db; /* gray-300 */
+            border: 1px solid var(--card-bg);
+            border-top: 1px solid var(--cheez-orange);
+            border-right: 1px solid var(--cheez-orange);
+            box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.4);
+            transform: translateY(2px); /* Makes inactive tabs look recessed */
+        }
+
+        /* --- GAME BUTTON STYLES --- */
+        .arcade-btn {
+            @apply px-5 py-2 font-black text-lg rounded-full transition duration-200 ease-in-out shadow-xl transform hover:scale-105 active:scale-95 border-b-4 border-r-2 uppercase;
+            font-family: 'Jockey One', sans-serif;
+            letter-spacing: 1px;
+        }
+        .arcade-btn-primary {
+             @apply bg-cheez-orange text-dark-bg border-orange-800 hover:bg-orange-600;
+             text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+        }
+        .arcade-btn-secondary {
+            @apply bg-card-bg text-noodle-yellow border-gray-600 hover:bg-gray-700;
+        }
+
+        /* --- GAME CONTENT --- */
+        .tab-content {
+            display: none;
+            padding-top: 20px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* --- NOODLE CATCHER STYLES --- */
+        #catcherCanvas {
+            border: 5px solid var(--cheez-orange);
+            background-color: #5b21b6; /* deep purple background for contrast */
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.9);
+            cursor: pointer;
+            border-radius: 10px;
+        }
+
+        /* --- SNAKE GAME STYLES (Canvas handled in JS) --- */
+        #snakeCanvas {
+            border: 5px solid var(--cheez-orange);
+            background-color: #374151;
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.9);
+            margin: 20px auto 0;
+            display: block;
+            border-radius: 10px;
+        }
+
+        .d-pad button {
+            @apply bg-cheez-orange text-dark-bg p-3 rounded-xl border-b-4 border-r-2 border-orange-800 m-1 hover:bg-orange-600 shadow-md;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: transform 0.1s;
+        }
+
+        /* --- CHEESY TYCOON STYLES --- */
+        .tycoon-stat-card {
+            @apply bg-dark-bg p-6 rounded-2xl shadow-2xl border-l-8 border-cheez-orange flex flex-col items-center justify-center transform hover:scale-[1.01] transition duration-150;
+        }
+        .upgrade-card {
+            @apply bg-card-bg p-5 rounded-xl shadow-xl border-t-2 border-b-4 border-gray-600 flex justify-between items-center mb-4 transition duration-150 hover:bg-gray-600;
+        }
+
+        /* --- MESSAGE BOX (MODAL) --- */
+        .message-box {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+        .message-content {
+            background-color: var(--card-bg);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            box-shadow: 0 0 40px var(--noodle-yellow);
+            border: 4px solid var(--cheez-orange);
+        }
+
+    </style>
+    <script type="module">
+        // --- FIREBASE AND GLOBAL SETUP ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global state and constants
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-cheez-arcade';
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        } catch (e) {
+            console.error("Error parsing firebase config:", e);
+        }
+
+        // SAFELY capture the initial auth token here to prevent premature access errors
+        const canvasAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+
+        let db = null;
+        let auth = null;
+        let userId = 'anon_user'; // Default placeholder
+        let currentScreen = 'lobby';
+        let tickerInterval = null; // For Tycoon income
+
+        // --- GAME STATES ---
+        let tycoonState = {
+            cheeseCount: 0,
+            incomePerSecond: 0,
+            upgrades: {
+                heaters: { level: 0, cost: 100, baseRate: 1, multiplier: 1.5, name: "Infrared Heaters" },
+                stirrers: { level: 0, cost: 500, baseRate: 5, multiplier: 1.8, name: "Automated Stirrers" },
+                vats: { level: 0, cost: 5000, baseRate: 50, multiplier: 1.5, name: "Noodle Vats (Mega)" },
+                accelerator: { level: 0, cost: 25000, baseRate: 200, multiplier: 2.0, name: "Microwave Accelerator" },
+                pump: { level: 0, cost: 100000, baseRate: 800, multiplier: 1.7, name: "Hydro-Dynamic Pump" },
+                fountain: { level: 0, cost: 500000, baseRate: 3000, multiplier: 1.6, name: "Gold Fountain" }
+            }
+        };
+
+        let achievementState = {};
+
+        // --- MESSAGING AND UI FUNCTIONS ---
+
+        /** Shows a modal message box */
+        const showMessage = (title, message, buttonText, actionFn) => {
+            const box = document.getElementById('message-box');
+            document.getElementById('msg-title').innerText = title;
+            document.getElementById('msg-body').innerHTML = message;
+            document.getElementById('msg-button').innerText = buttonText;
+            document.getElementById('msg-button').onclick = () => {
+                box.style.display = 'none';
+                if (actionFn) actionFn();
+            };
+            box.style.display = 'flex';
+        };
+
+        /** Updates the active tab and screen */
+        const showScreen = (screenId) => {
+            currentScreen = screenId;
+
+            // 1. Update Tab Styles
+            document.querySelectorAll('.chrome-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`btn-${screenId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+
+            // 2. Update Content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${screenId}`).classList.add('active');
+
+            // 3. Game specific logic
+            // Ensure any canvas is sized correctly when its tab is made active
+            if (screenId === 'tycoon') {
+                startTicker();
+                renderTycoon();
+            } else if (screenId === 'goals') {
+                renderAchievements();
+            } else if (screenId === 'catcher') {
+                stopTicker();
+                if (!document.getElementById('catcherCanvas').getContext('2d').canvas.__initialized) {
+                    renderCatcherInstructions();
+                } else {
+                    // If initialized but paused, offer to resume or restart
+                    showMessage("Ready to Catch!", "The Noodle Catcher game is ready.", "Restart Game", initCatcher);
+                }
+            } else if (screenId === 'snake') {
+                stopTicker();
+                if (!document.getElementById('snakeCanvas').getContext('2d').canvas.__initialized) {
+                    renderSnakeInstructions();
+                } else {
+                     showMessage("Ready to Slither!", "The Cheesy Snake game is ready.", "Restart Game", initSnake);
+                }
+            } else if (screenId === 'rps') {
+                stopTicker();
+            } else {
+                stopTicker();
+            }
+        };
+        window.showScreen = showScreen; // Expose to global scope for HTML attributes
+
+        const formatNumber = (num) => {
+            if (num >= 1e6) {
+                return (num / 1e6).toFixed(2) + 'M';
+            } else if (num >= 1e3) {
+                return (num / 1e3).toFixed(1) + 'k';
+            }
+            return Math.floor(num).toLocaleString('en-US');
+        };
+
+        const formatDecimal = (num) => {
+            return parseFloat(num.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 2 });
+        };
+
+        // --- FIREBASE DATA MANAGEMENT ---
+
+        const getTycoonDocRef = (uid) => {
+            return doc(db, 'artifacts', appId, 'users', uid, 'tycoon', 'data');
+        };
+
+        const saveTycoonState = async () => {
+            if (!db || userId === 'anon_user') return; // Do not save if not fully initialized
+
+            // Convert tycoonState.upgrades object to an array of serializable objects
+            const serializableUpgrades = Object.keys(tycoonState.upgrades).map(key => ({
+                id: key,
+                level: tycoonState.upgrades[key].level,
+            }));
+
+            const dataToSave = {
+                cheeseCount: tycoonState.cheeseCount,
+                incomePerSecond: tycoonState.incomePerSecond,
+                upgrades: serializableUpgrades, // Save only level
+                lastUpdated: Date.now()
+            };
+
+            try {
+                await setDoc(getTycoonDocRef(userId), dataToSave, { merge: true });
+                // console.log("Tycoon state saved successfully.");
+            } catch (e) {
+                console.error("Error saving tycoon state: ", e);
+            }
+        };
+
+        const loadTycoonState = async () => {
+            if (!db || userId === 'anon_user') return;
+
+            try {
+                const docRef = getTycoonDocRef(userId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+
+                    tycoonState.cheeseCount = data.cheeseCount || 0;
+                    tycoonState.incomePerSecond = data.incomePerSecond || 0;
+
+                    // Load upgrade levels and merge back into the state object
+                    if (data.upgrades) {
+                        data.upgrades.forEach(savedUpgrade => {
+                            if (tycoonState.upgrades[savedUpgrade.id]) {
+                                tycoonState.upgrades[savedUpgrade.id].level = savedUpgrade.level;
+                            }
+                        });
+                    }
+
+                    // Calculate offline earnings
+                    if (data.lastUpdated && tycoonState.incomePerSecond > 0) {
+                        const timeOfflineSeconds = (Date.now() - data.lastUpdated) / 1000;
+                        const offlineEarnings = timeOfflineSeconds * tycoonState.incomePerSecond;
+
+                        if (offlineEarnings > 1) {
+                            tycoonState.cheeseCount += offlineEarnings;
+                            showMessage(
+                                "🧀 Offline Earnings! 💰",
+                                `You earned ${formatNumber(offlineEarnings)} Cheese while you were away!`,
+                                "Sweet!",
+                                renderTycoon
+                            );
+                        }
+                    }
+
+                    // Force income recalculation after load
+                    calculateIncomePerSecond();
+                    renderTycoon();
+
+                } else {
+                    console.log("No existing tycoon data found. Starting fresh.");
+                    tycoonState.cheeseCount = 10; // Give a small starter amount
+                    calculateIncomePerSecond();
+                    renderTycoon();
+                }
+            } catch (e) {
+                console.error("Error loading tycoon state:", e);
+            }
+        };
+
+        // --- TYCOON LOGIC ---
+
+        const calculateIncomePerSecond = () => {
+            let totalIncome = 0;
+            const u = tycoonState.upgrades;
+
+            // Base Production (Infrared Heaters)
+            totalIncome += u.heaters.level * u.heaters.baseRate;
+
+            // Compounding Multiplier (Automated Stirrers)
+            let stirrerIncome = u.stirrers.level * u.stirrers.baseRate;
+            // The stirrer also multiplies the base production
+            if (u.stirrers.level > 0) {
+                totalIncome = totalIncome * (1 + u.stirrers.level * 0.1) + stirrerIncome;
+            } else {
+                 totalIncome += stirrerIncome;
+            }
+
+
+            // Flat Mega Boost (Noodle Vats)
+            totalIncome += u.vats.level * u.vats.baseRate;
+
+            // Accelerator Boost
+            totalIncome += u.accelerator.level * u.accelerator.baseRate;
+
+            // Hydro-Dynamic Pump (Major Multiplier)
+            if (u.pump.level > 0) {
+                totalIncome *= Math.pow(u.pump.multiplier, u.pump.level);
+            }
+
+            // Gold Fountain (Ultimate Passive)
+            totalIncome += u.fountain.level * u.fountain.baseRate;
+
+            tycoonState.incomePerSecond = totalIncome;
+        };
+
+        const buyUpgrade = (upgradeId) => {
+            const upgrade = tycoonState.upgrades[upgradeId];
+            const cost = Math.floor(upgrade.cost * Math.pow(upgrade.multiplier, upgrade.level));
+
+            if (tycoonState.cheeseCount >= cost) {
+                tycoonState.cheeseCount -= cost;
+                upgrade.level++;
+                calculateIncomePerSecond();
+                saveTycoonState();
+                renderTycoon();
+                renderAchievements(); // Check for new income/level achievements
+            } else {
+                showMessage("Insufficient Cheese!", `You need ${formatNumber(cost)} Cheese for the next level of ${upgrade.name}. Get back to grinding!`, "Bummer!");
+            }
+        };
+        window.buyUpgrade = buyUpgrade;
+
+        const incomeTicker = () => {
+            tycoonState.cheeseCount += tycoonState.incomePerSecond / 10; // 10 ticks per second
+            renderTycoon();
+            renderAchievements(); // Check achievements constantly
+            saveTycoonState(); // Save frequently
+        };
+
+        const startTicker = () => {
+            if (!tickerInterval) {
+                tickerInterval = setInterval(incomeTicker, 100); // 10 times per second
+            }
+        };
+
+        const stopTicker = () => {
+            if (tickerInterval) {
+                clearInterval(tickerInterval);
+                tickerInterval = null;
+            }
+        };
+
+        // --- TYCOON RENDERING ---
+
+        const renderTycoon = () => {
+            const statCard = document.getElementById('tycoon-stats');
+            const upgradeList = document.getElementById('tycoon-upgrades-list');
+
+            if (!statCard || !upgradeList) return;
+
+            statCard.innerHTML = `
+                <div class="tycoon-stat-card">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Total Cheese Stored</p>
+                    <span class="text-5xl font-black text-noodle-yellow mt-2" style="font-family: 'Jockey One', sans-serif;">${formatNumber(tycoonState.cheeseCount)}</span>
+                </div>
+                <div class="tycoon-stat-card">
+                     <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Cheese Production Rate</p>
+                    <span class="text-5xl font-black text-cheez-orange mt-2" style="font-family: 'Jockey One', sans-serif;">${formatDecimal(tycoonState.incomePerSecond)}/s</span>
+                </div>
+            `;
+
+            let upgradesHTML = '';
+            for (const id in tycoonState.upgrades) {
+                const upgrade = tycoonState.upgrades[id];
+                const nextCost = Math.floor(upgrade.cost * Math.pow(upgrade.multiplier, upgrade.level));
+
+                const canAfford = tycoonState.cheeseCount >= nextCost;
+                const buttonClasses = canAfford ? 'arcade-btn-primary' : 'bg-gray-700 text-gray-400 cursor-not-allowed border-none shadow-none';
+
+                upgradesHTML += `
+                    <div class="upgrade-card">
+                        <div>
+                            <p class="text-xl font-black text-noodle-yellow" style="font-family: 'Jockey One', sans-serif;">${upgrade.name}</p>
+                            <p class="text-sm text-gray-400">Level: ${upgrade.level} | Next Rate: +${formatDecimal(upgrade.baseRate * Math.pow(upgrade.multiplier, upgrade.level))} Cheese/s</p>
+                        </div>
+                        <button class="arcade-btn ${buttonClasses}"
+                                ${canAfford ? `onclick="buyUpgrade('${id}')"` : 'disabled'}
+                                style="font-size: 1rem; padding: 0.5rem 1.25rem;">
+                            Buy: ${formatNumber(nextCost)} 🧀
+                        </button>
+                    </div>
+                `;
+            }
+            upgradeList.innerHTML = upgradesHTML;
+        };
+
+
+        // --- NOODLE CATCHER GAME LOGIC ---
+
+        let catcherCanvas, catcherCtx, bowl, noodles, bombs, catcherScore, catcherLives, gameSpeed, isCatcherRunning, spawnObjectInterval, updateSpeedInterval, lastCatcherScore = 0;
+
+        const CATCHER_WIDTH = 600;
+        const CATCHER_HEIGHT = 400;
+
+        const initCatcher = () => {
+            catcherCanvas = document.getElementById('catcherCanvas');
+            catcherCtx = catcherCanvas.getContext('2d');
+            catcherCanvas.width = CATCHER_WIDTH;
+            catcherCanvas.height = CATCHER_HEIGHT;
+            catcherCtx.canvas.__initialized = true;
+
+            bowl = { x: CATCHER_WIDTH / 2 - 40, y: CATCHER_HEIGHT - 30, width: 80, height: 20 };
+            noodles = [];
+            bombs = [];
+            catcherScore = 0;
+            catcherLives = 3;
+            gameSpeed = 2.0;
+            isCatcherRunning = true;
+
+            // Clear any old listeners
+            catcherCanvas.removeEventListener('mousemove', moveBowl);
+            catcherCanvas.removeEventListener('touchmove', moveBowlTouch);
+            if (spawnObjectInterval) clearInterval(spawnObjectInterval);
+            if (updateSpeedInterval) clearInterval(updateSpeedInterval);
+
+            // Add new listeners
+            catcherCanvas.addEventListener('mousemove', moveBowl);
+            catcherCanvas.addEventListener('touchmove', moveBowlTouch);
+
+            gameLoopCatcher();
+            spawnObjectInterval = setInterval(spawnObject, 800);
+            updateSpeedInterval = setInterval(() => { gameSpeed += 0.2; }, 7000); // Speed up over time
+        };
+
+        const moveBowl = (e) => {
+            if (!isCatcherRunning) return;
+            let rect = catcherCanvas.getBoundingClientRect();
+            let scaleX = catcherCanvas.width / rect.width;
+            let mouseX = (e.clientX - rect.left) * scaleX;
+            bowl.x = mouseX - bowl.width / 2;
+            if (bowl.x < 0) bowl.x = 0;
+            if (bowl.x > CATCHER_WIDTH - bowl.width) bowl.x = CATCHER_WIDTH - bowl.width;
+        };
+
+        const moveBowlTouch = (e) => {
+            e.preventDefault();
+            if (!isCatcherRunning || e.touches.length === 0) return;
+            moveBowl(e.touches[0]);
+        };
+
+        const spawnObject = () => {
+            if (!isCatcherRunning) return;
+            const isNoodle = Math.random() > 0.3; // 70% chance of noodle, 30% of bomb
+            const x = Math.random() * (CATCHER_WIDTH - 30) + 15;
+            const size = 20 + Math.random() * 10;
+            const object = { x: x, y: -size, size: size, speed: gameSpeed + Math.random() * 1 };
+
+            if (isNoodle) {
+                noodles.push(object);
+            } else {
+                bombs.push(object);
+            }
+        };
+
+        const drawCatcher = () => {
+            // Clear canvas (background is static purple)
+            catcherCtx.clearRect(0, 0, CATCHER_WIDTH, CATCHER_HEIGHT);
+            catcherCtx.fillStyle = '#5b21b6';
+            catcherCtx.fillRect(0, 0, CATCHER_WIDTH, CATCHER_HEIGHT);
+
+            // Draw Bowl (Cheesy yellow bowl with a dark rim)
+            catcherCtx.fillStyle = '#fde047'; // var(--noodle-yellow)
+            catcherCtx.fillRect(bowl.x, bowl.y, bowl.width, bowl.height);
+            catcherCtx.fillStyle = '#f97316'; // var(--cheez-orange)
+            catcherCtx.fillRect(bowl.x, bowl.y, bowl.width, 6); // Rim for 3D effect
+
+            // Draw Noodles (Orange color)
+            catcherCtx.fillStyle = '#f97316'; // var(--cheez-orange)
+            noodles.forEach(n => {
+                catcherCtx.beginPath();
+                catcherCtx.arc(n.x, n.y, n.size / 2, 0, Math.PI * 2);
+                catcherCtx.fill();
+            });
+
+            // Draw Bombs (Red color with a small fuse)
+            bombs.forEach(b => {
+                // Bomb body
+                catcherCtx.fillStyle = '#dc2626'; // Red-600
+                catcherCtx.beginPath();
+                catcherCtx.arc(b.x, b.y, b.size / 2, 0, Math.PI * 2);
+                catcherCtx.fill();
+                // Fuse
+                catcherCtx.fillStyle = '#000';
+                catcherCtx.fillRect(b.x - 2, b.y - b.size / 2 - 5, 4, 5);
+            });
+
+            // Draw Score and Lives
+            catcherCtx.fillStyle = 'white';
+            catcherCtx.font = '24px "Jockey One"';
+            catcherCtx.textAlign = 'left';
+            catcherCtx.fillText(`🧀 Noodles: ${catcherScore}`, 10, 30);
+            catcherCtx.textAlign = 'right';
+            catcherCtx.fillText(`❤️ Lives: ${catcherLives}`, CATCHER_WIDTH - 10, 30);
+        };
+
+        const updateCatcher = () => {
+            // Update noodles
+            for (let i = noodles.length - 1; i >= 0; i--) {
+                const n = noodles[i];
+                n.y += n.speed;
+
+                // Check for catch (Noodles hitting the bowl)
+                if (n.y >= bowl.y - n.size / 2 && n.x > bowl.x && n.x < bowl.x + bowl.width) {
+                    noodles.splice(i, 1);
+                    catcherScore++;
+                }
+                // Check for miss
+                else if (n.y > CATCHER_HEIGHT) {
+                    noodles.splice(i, 1);
+                    catcherLives--; // Missed noodles cost a life
+                }
+            }
+
+            // Update bombs
+            for (let i = bombs.length - 1; i >= 0; i--) {
+                const b = bombs[i];
+                b.y += b.speed;
+
+                // Check for collision (Bombs hitting the bowl)
+                if (b.y >= bowl.y - b.size / 2 && b.x > bowl.x && b.x < bowl.x + bowl.width) {
+                    bombs.splice(i, 1);
+                    catcherLives -= 2; // Bomb hit costs two lives
+                }
+                // Check if bomb passed the bottom (no penalty)
+                else if (b.y > CATCHER_HEIGHT) {
+                    bombs.splice(i, 1);
+                }
+            }
+
+
+            if (catcherLives <= 0) {
+                gameOverCatcher();
+            }
+        };
+
+        const gameOverCatcher = () => {
+            isCatcherRunning = false;
+            if (spawnObjectInterval) clearInterval(spawnObjectInterval);
+            if (updateSpeedInterval) clearInterval(updateSpeedInterval);
+            catcherCanvas.removeEventListener('mousemove', moveBowl);
+            catcherCanvas.removeEventListener('touchmove', moveBowlTouch);
+
+            const cheeseReward = catcherScore * 5;
+            tycoonState.cheeseCount += cheeseReward;
+            lastCatcherScore = catcherScore; // Save score for achievement check
+            saveTycoonState();
+            renderAchievements(); // Check for new score achievements
+
+            showMessage(
+                "Game Over! 💥",
+                `Final Noodles Caught: ${catcherScore}<br>
+                 <span class="text-cheez-orange font-black">You earned ${formatNumber(cheeseReward)} Cheese!</span>`,
+                "Back to Arcade",
+                () => { showScreen('lobby'); }
+            );
+        };
+
+        const gameLoopCatcher = () => {
+            if (isCatcherRunning) {
+                updateCatcher();
+                drawCatcher();
+                requestAnimationFrame(gameLoopCatcher);
+            }
+        };
+
+        const renderCatcherInstructions = () => {
+            showMessage(
+                "Noodle Catcher: Get Rich Quick!",
+                "Use your **mouse or finger** to move the bowl to catch falling **Noodles** (orange circles) and **AVOID** the **Bombs** (red circles)! Missing a noodle costs a life, a bomb costs two!",
+                "Start Catching",
+                initCatcher
+            );
+        };
+
+
+        // --- SNAKE GAME LOGIC ---
+
+        let snakeCanvas, snakeCtx, snakeGrid = 20, snakeBody, snakeFood, snakeDx, snakeDy, snakeGameLoop, snakeScore, lastSnakeScore = 0;
+        const SNAKE_SIZE = 400; // 20x20 grid
+
+        const initSnake = () => {
+            snakeCanvas = document.getElementById('snakeCanvas');
+            if (!snakeCanvas) return;
+            snakeCtx = snakeCanvas.getContext('2d');
+            snakeCanvas.width = SNAKE_SIZE;
+            snakeCanvas.height = SNAKE_SIZE;
+            snakeCtx.canvas.__initialized = true;
+
+            snakeBody = [{ x: 10 * snakeGrid, y: 10 * snakeGrid }]; // Start at center
+            snakeFood = {};
+            snakeDx = snakeGrid; // Start moving right
+            snakeDy = 0;
+            snakeScore = 0;
+            // Clear any old listeners
+            document.removeEventListener('keydown', handleSnakeKey, true);
+
+            // Add new listeners
+            document.addEventListener('keydown', handleSnakeKey, true);
+            document.getElementById('snake-dpad').style.display = 'flex';
+
+            spawnFood();
+            if (snakeGameLoop) clearInterval(snakeGameLoop);
+            snakeGameLoop = setInterval(gameLoopSnake, 120); // Slightly slower for initial play
+        };
+
+        const handleSnakeKey = (e) => {
+            if (!snakeGameLoop) return; // Only allow input if game is running
+
+            // Prevent snake from immediately reversing direction
+            const keyPressed = e.key.toLowerCase();
+            if ((keyPressed === 'arrowleft' || keyPressed === 'a') && snakeDx === 0) {
+                snakeDx = -snakeGrid; snakeDy = 0;
+            } else if ((keyPressed === 'arrowup' || keyPressed === 'w') && snakeDy === 0) {
+                snakeDx = 0; snakeDy = -snakeGrid;
+            } else if ((keyPressed === 'arrowright' || keyPressed === 'd') && snakeDx === 0) {
+                snakeDx = snakeGrid; snakeDy = 0;
+            } else if ((keyPressed === 'arrowdown' || keyPressed === 's') && snakeDy === 0) {
+                snakeDx = 0; snakeDy = snakeGrid;
+            }
+        };
+
+        const snakeDPad = (direction) => {
+             if (!snakeGameLoop) return;
+             if (direction === 'left' && snakeDx === 0) { snakeDx = -snakeGrid; snakeDy = 0; }
+             if (direction === 'up' && snakeDy === 0) { snakeDx = 0; snakeDy = -snakeGrid; }
+             if (direction === 'right' && snakeDx === 0) { snakeDx = snakeGrid; snakeDy = 0; }
+             if (direction === 'down' && snakeDy === 0) { snakeDx = 0; snakeDy = snakeGrid; }
+        };
+        window.snakeDPad = snakeDPad;
+
+
+        const spawnFood = () => {
+            let newFood;
+            let collision;
+            do {
+                collision = false;
+                newFood = {
+                    x: Math.floor(Math.random() * (SNAKE_SIZE / snakeGrid)) * snakeGrid,
+                    y: Math.floor(Math.random() * (SNAKE_SIZE / snakeGrid)) * snakeGrid
+                };
+                // Check if food spawns on snake
+                for (const segment of snakeBody) {
+                    if (segment.x === newFood.x && segment.y === newFood.y) {
+                        collision = true;
+                        break;
+                    }
+                }
+            } while (collision);
+            snakeFood = newFood;
+        };
+
+        const drawSnake = () => {
+            // Clear canvas
+            snakeCtx.fillStyle = '#374151';
+            snakeCtx.fillRect(0, 0, SNAKE_SIZE, SNAKE_SIZE);
+
+            // Draw food (Cheesy Pellet)
+            snakeCtx.fillStyle = '#fde047'; // var(--noodle-yellow)
+            snakeCtx.fillRect(snakeFood.x, snakeFood.y, snakeGrid, snakeGrid);
+
+            // Draw snake body
+            snakeBody.forEach((segment, index) => {
+                if (index === 0) {
+                    // Head is slightly brighter
+                    snakeCtx.fillStyle = '#f9aa33'; // Lighter orange for head
+                } else {
+                    snakeCtx.fillStyle = '#f97316'; // var(--cheez-orange)
+                }
+                snakeCtx.fillRect(segment.x + 1, segment.y + 1, snakeGrid - 2, snakeGrid - 2); // Small padding
+            });
+
+            // Draw Score
+            snakeCtx.fillStyle = 'white';
+            snakeCtx.font = '18px "Jockey One"';
+            snakeCtx.fillText(`Score: ${snakeScore}`, 10, 25);
+        };
+
+        const updateSnake = () => {
+            // New head position
+            const newHead = { x: snakeBody[0].x + snakeDx, y: snakeBody[0].y + snakeDy };
+
+            // Check for collision with walls
+            if (newHead.x < 0 || newHead.x >= SNAKE_SIZE || newHead.y < 0 || newHead.y >= SNAKE_SIZE) {
+                gameOverSnake();
+                return;
+            }
+
+            // Check for self-collision (start from 1 to skip head)
+            for (let i = 1; i < snakeBody.length; i++) {
+                if (newHead.x === snakeBody[i].x && newHead.y === snakeBody[i].y) {
+                    gameOverSnake();
+                    return;
+                }
+            }
+
+            // Add new head
+            snakeBody.unshift(newHead);
+
+            // Check for food collision
+            if (newHead.x === snakeFood.x && newHead.y === snakeFood.y) {
+                snakeScore++;
+                // Speed up slightly
+                if (snakeGameLoop) {
+                    clearInterval(snakeGameLoop);
+                    snakeGameLoop = setInterval(gameLoopSnake, Math.max(80, 120 - snakeScore * 2));
+                }
+
+                spawnFood(); // Grow snake and spawn new food
+                renderAchievements(); // Check for new goals
+            } else {
+                snakeBody.pop(); // Remove tail if no food eaten
+            }
+        };
+
+        const gameOverSnake = () => {
+            if (snakeGameLoop) clearInterval(snakeGameLoop);
+            snakeGameLoop = null;
+            document.removeEventListener('keydown', handleSnakeKey, true);
+            document.getElementById('snake-dpad').style.display = 'none';
+
+            const cheeseReward = snakeScore * 20; // Better reward for higher skill game
+            tycoonState.cheeseCount += cheeseReward;
+            lastSnakeScore = snakeScore; // Save score for achievement check
+            saveTycoonState();
+            renderAchievements();
+
+            showMessage(
+                "Game Over! 🐍",
+                `You ate ${snakeScore} cheesy pellets and earned a long noodle score!<br>
+                 <span class="text-cheez-orange font-black">You earned ${formatNumber(cheeseReward)} Cheese!</span>`,
+                "Play Again",
+                () => { showScreen('lobby'); }
+            );
+        };
+
+        const gameLoopSnake = () => {
+            updateSnake();
+            drawSnake();
+        };
+
+        const renderSnakeInstructions = () => {
+             showMessage(
+                "Cheesy Snake: The Long Noodle",
+                "Use the **Arrow Keys**, **WASD**, or the **D-pad** to guide your snake (the head is lighter orange) and eat the cheesy pellets (yellow)! Don't hit the walls or yourself!",
+                "Start Slithering",
+                initSnake
+            );
+        };
+
+
+        // --- RPS ARENA LOGIC ---
+        const RPS_BET = 250;
+        const RPS_MOVES = ['Rock', 'Paper', 'Scissors'];
+
+        const rpsPlay = (playerMove) => {
+            if (tycoonState.cheeseCount < RPS_BET) {
+                showMessage("Can't Afford!", `You need at least ${RPS_BET} Cheese to place a bet in the RPS Arena.`, "Get more cheese!");
+                return;
+            }
+
+            const computerMove = RPS_MOVES[Math.floor(Math.random() * 3)];
+            let result = '';
+            let cheeseChange = 0;
+
+            if (playerMove === computerMove) {
+                result = 'It\'s a cheesy draw! Your bet is returned.';
+                cheeseChange = 0;
+            } else if (
+                (playerMove === 'Rock' && computerMove === 'Scissors') ||
+                (playerMove === 'Paper' && computerMove === 'Rock') ||
+                (playerMove === 'Scissors' && computerMove === 'Paper')
+            ) {
+                result = 'You melted the competition! You win!';
+                cheeseChange = RPS_BET; // Win the bet amount
+            } else {
+                result = 'You got shredded! You lose the bet.';
+                cheeseChange = -RPS_BET; // Lose the bet amount
+            }
+
+            tycoonState.cheeseCount += cheeseChange;
+            saveTycoonState();
+            renderAchievements(); // Check for goals
+
+            const resultEl = document.getElementById('rps-result');
+            resultEl.innerHTML = `
+                <p class="text-xl font-black mb-2 ${cheeseChange > 0 ? 'text-noodle-yellow' : cheeseChange < 0 ? 'text-red-400' : 'text-gray-300'}" style="font-family: 'Jockey One', sans-serif;">${result}</p>
+                <p class="text-lg">You played: <span class="text-cheez-orange font-bold">${playerMove}</span></p>
+                <p class="text-lg">Computer played: <span class="text-cheez-orange font-bold">${computerMove}</span></p>
+                <p class="text-md mt-4 text-gray-300">Net Change: ${cheeseChange > 0 ? '+' : ''}${formatNumber(cheeseChange)} 🧀</p>
+            `;
+        };
+        window.rpsPlay = rpsPlay;
+
+
+        // --- GOALS/ACHIEVEMENTS LOGIC ---
+
+        const achievementData = [
+            { id: 'tycoon1', text: 'Rookie Producer: Reach 10 Cheese / Second income.', check: () => tycoonState.incomePerSecond >= 10 },
+            { id: 'tycoon2', text: 'Cheese Baron: Reach 500 Cheese / Second income.', check: () => tycoonState.incomePerSecond >= 500 },
+            { id: 'tycoon3', text: 'Hydro-Powered: Buy a Hydro-Dynamic Pump upgrade.', check: () => tycoonState.upgrades.pump.level >= 1 },
+            { id: 'tycoon4', text: 'Gold Fountain Owner: Buy a Solid Gold Cheese Fountain.', check: () => tycoonState.upgrades.fountain.level >= 1 },
+            { id: 'catcher1', text: 'Noodle Nibbler: Catch 10 Noodles in one run.', check: () => lastCatcherScore >= 10 },
+            { id: 'catcher2', text: 'Master Catcher: Catch 50 Noodles in one run.', check: () => lastCatcherScore >= 50 },
+            { id: 'snake1', text: 'Snake Starter: Score 5 points in Snake.', check: () => lastSnakeScore >= 5 },
+            { id: 'snake2', text: 'Long Noodle: Score 15 points in Snake.', check: () => lastSnakeScore >= 15 },
+        ];
+
+        const renderAchievements = () => {
+            const goalsList = document.getElementById('goals-list');
+            if (!goalsList) return;
+
+            // Update achievement state
+            achievementData.forEach(goal => {
+                if (goal.check()) {
+                    if (!achievementState[goal.id]) {
+                        // Optional: show a special notification for a new achievement
+                        // showMessage("Achievement Unlocked!", goal.text, "Awesome!");
+                    }
+                    achievementState[goal.id] = true;
+                }
+            });
+
+            // Render list
+            goalsList.innerHTML = achievementData.map(goal => {
+                const isComplete = achievementState[goal.id];
+                const icon = isComplete
+                    ? '<span class="text-green-400 text-3xl">🏆</span>'
+                    : '<span class="text-gray-500 text-3xl">🔒</span>';
+                const classes = isComplete
+                    ? 'bg-dark-bg border-cheez-orange opacity-100'
+                    : 'bg-card-bg border-gray-600 opacity-70';
+
+                return `
+                    <li class="p-4 rounded-xl shadow-md flex items-center justify-between ${classes} border-l-4 transition duration-300 mb-2">
+                        <span class="text-lg font-bold">${goal.text}</span>
+                        ${icon}
+                    </li>
+                `;
+            }).join('');
+        };
+
+
+        // --- INIT AND AUTH ---
+
+        const initFirebase = async () => {
+            if (Object.keys(firebaseConfig).length === 0) {
+                console.error("Firebase config is missing. Data saving is disabled.");
+                return;
+            }
+
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Authentication
+            // The fix: onAuthStateChanged will handle the token sign-in logic, using the safely defined local variable
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    try {
+                        if (canvasAuthToken) {
+                             await signInWithCustomToken(auth, canvasAuthToken);
+                        } else {
+                            const anon = await signInAnonymously(auth);
+                            userId = anon.user.uid;
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed, falling back to anon:", error);
+                        userId = `anon_${crypto.randomUUID()}`;
+                    }
+                }
+
+                // Once auth is ready (user or anon), load game data
+                if (userId) {
+                    await loadTycoonState();
+                    renderAchievements();
+                    // Display truncated user ID
+                    document.getElementById('user-id-display').innerText = `Player ID: ${userId.substring(0, 8)}...`;
+                }
+            });
+        };
+
+        // --- WINDOW LOAD ---
+        window.onload = () => {
+            // Initialize Firebase and load data
+            initFirebase();
+
+            // Set up initial screen
+            showScreen('lobby');
+        };
+
+    </script>
+</head>
+<body class="bg-dark-bg min-h-screen pt-16">
+
+    <!-- Message Box/Modal -->
+    <div id="message-box" class="message-box">
+        <div class="message-content">
+            <h3 id="msg-title" class="text-3xl font-black mb-3" style="font-family: 'Jockey One', sans-serif;">Message Title</h3>
+            <p id="msg-body" class="text-lg mb-6 text-gray-300"></p>
+            <button id="msg-button" class="arcade-btn arcade-btn-primary">OK</button>
+        </div>
+    </div>
+
+
+    <!-- Fixed Top Tab Bar -->
+    <div class="tab-bar-container fixed w-full top-0">
+        <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-2">
+            <!-- App Title -->
+            <h1 class="text-3xl font-black" style="font-family: 'Jockey One', sans-serif;">
+                <span class="text-noodle-yellow">CHEZ</span><span class="text-cheez-orange">NOODLEZ</span> <span class="text-xs text-gray-400">ARCADE</span>
+            </h1>
+
+            <!-- User ID Display -->
+             <span id="user-id-display" class="text-sm text-gray-400 font-medium">Loading User...</span>
+        </div>
+
+        <div class="max-w-4xl mx-auto flex overflow-x-auto whitespace-nowrap">
+            <!-- Navigation Tabs (Chrome Style) -->
+            <button id="btn-lobby" class="chrome-tab px-6 py-2 font-bold text-sm min-w-[100px]" onclick="showScreen('lobby')">Lobby</button>
+            <button id="btn-tycoon" class="chrome-tab px-6 py-2 font-bold text-sm min-w-[100px]" onclick="showScreen('tycoon')">Tycoon</button>
+            <button id="btn-catcher" class="chrome-tab px-6 py-2 font-bold text-sm min-w-[100px]" onclick="showScreen('catcher')">Catcher</button>
+            <button id="btn-snake" class="chrome-tab px-6 py-2 font-bold text-sm min-w-[100px]" onclick="showScreen('snake')">Snake</button>
+            <button id="btn-rps" class="chrome-tab px-6 py-2 font-bold text-sm min-w-[100px]" onclick="showScreen('rps')">RPS Arena</button>
+            <button id="btn-goals" class="chrome-tab px-6 py-2 font-bold text-sm min-w-[100px]" onclick="showScreen('goals')">Goals</button>
+        </div>
+    </div>
+
+
+    <!-- Main Content Area -->
+    <main class="max-w-4xl mx-auto p-4 md:p-8 mt-4 bg-noodle-yellow rounded-b-xl shadow-2xl border-4 border-cheez-orange">
+        
+        <!-- Tab Content Wrapper -->
+        <div id="tab-container" class="p-4 rounded-xl bg-card-bg min-h-[500px] border border-gray-600">
+
+            <!-- 1. LOBBY SCREEN -->
+            <div id="tab-lobby" class="tab-content active text-center text-gray-200">
+                <h2 class="text-5xl font-black mb-4 text-cheez-orange" style="font-family: 'Jockey One', sans-serif;">THE CHEESIEST ARCADE</h2>
+                <p class="text-xl mb-6 text-gray-300">Welcome, Noodle Fan! Play games to earn **Cheese** and invest it into your **Tycoon** production!</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 text-left">
+                    <div class="bg-dark-bg p-6 rounded-xl shadow-inner border-l-4 border-noodle-yellow">
+                        <h3 class="text-2xl font-black text-noodle-yellow mb-2" style="font-family: 'Jockey One', sans-serif;">🧀 Tycoon Factory</h3>
+                        <p class="text-gray-400">Manage your passive income. Buy **Heaters** and **Pumps** to boost your Cheese per Second. All progress is saved automatically!</p>
+                    </div>
+                    <div class="bg-dark-bg p-6 rounded-xl shadow-inner border-l-4 border-cheez-orange">
+                        <h3 class="text-2xl font-black text-cheez-orange mb-2" style="font-family: 'Jockey One', sans-serif;">🕹️ Arcade Games</h3>
+                        <p class="text-gray-400">Jump into **Noodle Catcher** or **Cheesy Snake** for a quick hit of earnings, or try your luck in the **RPS Arena**!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. CHEESY TYCOON SCREEN -->
+            <div id="tab-tycoon" class="tab-content text-gray-200">
+                <h2 class="text-5xl font-black mb-6 text-noodle-yellow text-center" style="font-family: 'Jockey One', sans-serif;">Tycoon: Maximize Your Yield</h2>
+
+                <!-- Stats -->
+                <div id="tycoon-stats" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+                    <!-- Stats are rendered here by renderTycoon() -->
+                </div>
+
+                <!-- Upgrades -->
+                <h3 class="text-3xl font-black mb-4 text-cheez-orange" style="font-family: 'Jockey One', sans-serif;">Factory Upgrades</h3>
+                <div id="tycoon-upgrades-list">
+                    <!-- Upgrades are rendered here by renderTycoon() -->
+                </div>
+            </div>
+
+            <!-- 3. NOODLE CATCHER SCREEN -->
+            <div id="tab-catcher" class="tab-content text-gray-200 text-center">
+                <h2 class="text-4xl font-black mb-4 text-noodle-yellow" style="font-family: 'Jockey One', sans-serif;">Noodle Catcher</h2>
+                <p class="mb-6 text-gray-400">Catch the orange noodles for points, avoid the red bombs!</p>
+                <canvas id="catcherCanvas" class="mx-auto block"></canvas>
+            </div>
+
+            <!-- 4. SNAKE GAME SCREEN -->
+            <div id="tab-snake" class="tab-content text-gray-200 text-center">
+                <h2 class="text-4xl font-black mb-4 text-noodle-yellow" style="font-family: 'Jockey One', sans-serif;">Cheesy Snake</h2>
+                <p class="mb-4 text-gray-400">Eat the yellow pellets to grow your noodle!</p>
+                <canvas id="snakeCanvas" class="mx-auto block"></canvas>
+
+                <!-- Mobile D-Pad -->
+                <div id="snake-dpad" class="flex flex-col items-center mt-6" style="display:none;">
+                    <button onclick="snakeDPad('up')" class="d-pad-btn">▲</button>
+                    <div class="flex">
+                        <button onclick="snakeDPad('left')" class="d-pad-btn">◀</button>
+                        <div class="w-12 h-12"></div>
+                        <button onclick="snakeDPad('right')" class="d-pad-btn">▶</button>
+                    </div>
+                    <button onclick="snakeDPad('down')" class="d-pad-btn">▼</button>
+                </div>
+            </div>
+
+            <!-- 5. RPS ARENA SCREEN -->
+            <div id="tab-rps" class="tab-content text-gray-200 text-center">
+                <h2 class="text-4xl font-black mb-6 text-noodle-yellow" style="font-family: 'Jockey One', sans-serif;">RPS Arena: High Stakes</h2>
+                <p class="text-xl mb-6 text-gray-300">Bet **${RPS_BET} Cheese** against the computer. Are you feeling lucky?</p>
+
+                <div class="flex justify-center space-x-4 mb-8">
+                    <button class="arcade-btn arcade-btn-primary w-28" onclick="rpsPlay('Rock')">Rock 🗿</button>
+                    <button class="arcade-btn arcade-btn-primary w-28" onclick="rpsPlay('Paper')">Paper 📜</button>
+                    <button class="arcade-btn arcade-btn-primary w-28" onclick="rpsPlay('Scissors')">Scissors ✂️</button>
+                </div>
+
+                <div id="rps-result" class="bg-dark-bg p-6 rounded-xl border-4 border-gray-700 min-h-[150px] flex flex-col justify-center items-center">
+                    <p class="text-gray-400">Make your first bet to get started!</p>
+                </div>
+            </div>
+
+            <!-- 6. GOALS SCREEN -->
+            <div id="tab-goals" class="tab-content text-gray-200">
+                <h2 class="text-4xl font-black mb-6 text-cheez-orange text-center" style="font-family: 'Jockey One', sans-serif;">Cheesy Achievements</h2>
+                <p class="text-center text-gray-400 mb-4">Prove your mastery of the noodle economy.</p>
+                <ul id="goals-list" class="list-none p-0 max-w-lg mx-auto space-y-3">
+                    <!-- Achievements are rendered here by renderAchievements() -->
+                </ul>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
